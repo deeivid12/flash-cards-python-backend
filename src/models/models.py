@@ -44,7 +44,10 @@ class Deck():
 class Card():
     id_card = 0
     num_reviews = 0
-    grade = None # poor, fair, good, very good, outstanding, excellent
+    grade = 0 # fail, hard, good, easy
+    recently_created = True
+    last_review = None
+    #box = 1
     
     def __init__(self, front, back, id_deck, tags=None):
         Card.id_card += int(1)
@@ -52,6 +55,8 @@ class Card():
         self.id_deck = id_deck
         self.front = front
         self.back = back
+        self.creation_date = datetime.datetime.now()
+        self.update_date = copy.deepcopy(self.creation_date)
         if(tags is None):
             self.tags = []
         else:
@@ -59,7 +64,20 @@ class Card():
             
     def to_dict(self):
         return { "id_card": self.id_card, "front": self.front,
-                 "back": self.back, "id_deck": self.id_deck}
+                 "back": self.back, "id_deck": self.id_deck,
+                 "grade": self.grade, "update_date": self.update_date.__str__(),
+                 "creation_date": self.creation_date.__str__(), "last_review": self.last_review.__str__()}
+        
+    def update_grade(self, grade):
+        self.grade = grade
+        
+    def update_date_now(self):
+        self.update_date = datetime.datetime.now()
+        if self.recently_created:
+            self.recently_created = False
+            
+    def update_last_review(self):
+        self.last_review = datetime.datetime.now()
 
 """
 if __name__ == "__main__":

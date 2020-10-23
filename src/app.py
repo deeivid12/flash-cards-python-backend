@@ -64,6 +64,32 @@ def get_all_cards_from_deck():
             results = [card.to_dict() for card in deck.cards]
             return json.dumps({"results": results}), status.HTTP_200_OK
     return {"response":"id_deck not found!"}, status.HTTP_404_NOT_FOUND
+
+@app.route("/review_cards", methods=["POST"])
+def review_cards():
+    num_cards_review = 5 # note: i have to put this configuration in a config.ini
+    id_deck = request.json["id_deck"]
+    all_cards = []
+    for deck in all_decks_db:
+        if id_deck == deck.id_deck:
+            all_cards = [card.to_dict() for card in deck.cards]
+            return json.dumps({"results": sorted(all_cards, key=lambda x: x["grade"])[:num_cards_review]}), status.HTTP_200_OK
+    return {"response":"id_deck not found!"}, status.HTTP_404_NOT_FOUND
+
+@app.route("/evaluate_card", methods=["PUT"])
+def evaluate_card():
+    id_deck = request.json["id_deck"]
+    id_card = request.json["id_card"]
+    grade = request.json["grade"]
+    for deck in all_decks_db:
+        if id_deck == deck.id_deck:
+            for card in deck.cards:
+                if id_card == card.id_card:
+                    card.update_grade(grade)
+                    card.update_last_review()
+                    return json.dumps({"results":"ok!"}), status.HTTP_200_OK
+                
+    
             
 
 if __name__ == "__main__":
