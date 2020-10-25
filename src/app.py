@@ -2,12 +2,14 @@ from models import models
 from flask import Flask, request, jsonify
 from flask_api import status
 from flask_sqlalchemy import SQLAlchemy
-from flask_marshmallow import Marshmallow
+#from flask_marshmallow import Marshmallow
+from flask_cors import CORS
 import json
 
 all_decks_db = list()
 
 app = Flask(__name__)
+CORS(app)
 
 @app.route("/create_deck", methods=["POST"])
 def create_deck():
