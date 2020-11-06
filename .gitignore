@@ -228,3 +228,4 @@ pip-selfcheck.json
 .history
 .ionide
 .vscode/settings.json
+src/flashcards.db

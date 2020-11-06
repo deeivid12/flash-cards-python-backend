@@ -1,0 +1,8 @@
+Create a new SQLLite database (from terminal):
+First of all, you can check out there is no a __pycache__ folder into the directory (this can cache some old database parameters or configurations and raise an error). Then in a terminal:
+
+1)  python3
+2)  from name_project import db
+    db.create_all()
+
+
