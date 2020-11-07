@@ -20,36 +20,59 @@ db = SQLAlchemy(app)
 
 
 class Deck(db.Model):
-    # __tablename__ = "decks"
+    __tablename__ = "decks"
     id_deck = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(50), unique=True, nullable=False)
     description = db.Column(db.Text)
-    #creation_date = db.Column(db.DateTime, nullable=False,
-    #                          default=datetime.utcnow)
-    #update_date = db.Column(db.DateTime, nullable=False,
-    #                        default=copy.deepcopy(creation_date))
+    creation_date = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    update_date = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     recently_created = True
     cards = db.relationship("Card", backref="cards")
     # reviews_today = 0
     # reviews_per_day = 0
     # total_reviews = 0
 
+    def update_date_now(self):
+        self.update_date = datetime.utcnow()
+        if self.recently_created:
+            self.recently_created = False
+
+    def to_dict(self):
+        return {"id_deck": self.id_deck, "name": self.name, "description": self.description,
+              "creation_date": self.creation_date.__str__(),
+              "update_date": self.update_date.__str__()}
+
 
 class Card(db.Model):
-    # __tablename__ = "cards"
+    __tablename__ = "cards"
     id_card = db.Column(db.Integer, primary_key=True)
     front = db.Column(db.Text, nullable=False)
     back = db.Column(db.Text, nullable=False)
-    #creation_date = db.Column(db.DateTime, nullable=False,
-    #                          default=datetime.utcnow)
-    #update_date = db.Column(db.DateTime, nullable=False,
-    #                        default=copy.deepcopy(creation_date))
+    creation_date = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    update_date = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     grade = db.Column(db.Integer, nullable=False, default=0)
-    #last_review = db.Column(db.DateTime, nullable=False, default=None)
+    last_review = db.Column(db.DateTime, default=None)
     recently_created = True
-    id_deck = db.Column(db.Integer, db.ForeignKey("deck.id_deck"), nullable=False)
+    id_deck = db.Column(db.Integer, db.ForeignKey("decks.id_deck"), nullable=False)
     # num_reviews = 0
     # box = 1
+
+    def to_dict(self):
+        return {"id_card": self.id_card, "front": self.front,
+                "back": self.back, "id_deck": self.id_deck,
+                "grade": self.grade, "update_date": self.update_date.__str__(),
+                "creation_date": self.creation_date.__str__(), "last_review": self.last_review.__str__()}
+
+    def update_grade(self, grade):
+        self.grade = grade
+
+    def update_date_now(self):
+        self.update_date = datetime.utcnow()
+        if self.recently_created:
+            self.recently_created = False
+
+    def update_last_review(self):
+        self.last_review = datetime.utcnow()
 
 
 @app.route("/create_deck", methods=["POST"])
@@ -61,6 +84,34 @@ def create_deck():
     db.session.commit()
     return {"response": "ok!"}, status.HTTP_200_OK
 
+@app.route("/my_decks")
+def get_decks():
+    results = [deck.to_dict() for deck in Deck.query.all()]
+    return json.dumps({"results": results}), status.HTTP_200_OK
+
+@app.route("/edit_deck", methods=["PUT"])
+def edit_deck():
+    id_deck = request.json["id_deck"]
+    name = request.json["name"]
+    description = request.json["description"]
+    deck = Deck.query.filter_by(id_deck=id_deck).first()
+    if deck:
+        deck.name = name
+        deck.description = description
+        deck.update_date_now()
+        db.session.commit()
+        return json.dumps({"results": "ok!"}), status.HTTP_200_OK
+    return json.dumps({"results": "id_deck not found!"}), status.HTTP_404_NOT_FOUND
+
+@app.route("/delete_deck", methods=["DELETE"])
+def delete_deck():
+    id_deck = request.json["id_deck"]
+    deck = Deck.query.filter_by(id_deck=id_deck).first()
+    if deck:
+        db.session.delete(deck)
+        db.session.commit()
+        return json.dumps({"results":"ok!"}), status.HTTP_200_OK
+    return json.dumps({"results":"id_deck not found!"}), status.HTTP_404_NOT_FOUND  
 
 @app.route("/create_card", methods=["POST"])
 def create_card():
@@ -72,82 +123,36 @@ def create_card():
     db.session.commit()
     return {"response": "ok!"}, status.HTTP_200_OK
 
-
-""" The following routes have not been refactored yet, so currently they are not using
-SQLAlchemy ORM.
-
-@app.route("/my_decks")    
-def get_all_decks():
-    results = [deck.to_dict() for deck in all_decks_db]
-    return json.dumps({"results": results}), status.HTTP_200_OK
-
-
-@app.route("/edit_deck", methods=["PUT"])
-def edit_deck():
-    id_deck = request.json["id_deck"]
-    name = request.json["name"]
-    description = request.json["description"]
-    for i, deck in enumerate(all_decks_db):
-        if id_deck == deck.id_deck:
-            all_decks_db[i].name = name
-            all_decks_db[i].description = description
-            all_decks_db[i].update_date_now()
-            return json.dumps({"results":"ok!"}), status.HTTP_200_OK
-    return json.dumps({"results":"id_deck not found!"}), status.HTTP_404_NOT_FOUND
-
-
-@app.route("/delete_deck", methods=["DELETE"])
-def delete_deck():
-    id_deck = request.json["id_deck"]
-    for deck in all_decks_db:
-        if id_deck == deck.id_deck:
-            all_decks_db.remove(deck)
-            return json.dumps({"results":"ok!"}), status.HTTP_200_OK
-    return json.dumps({"results":"id_deck not found!"}), status.HTTP_404_NOT_FOUND
-
-
 @app.route("/my_cards", methods=["POST"])    
-def get_all_cards_from_deck():
+def get_cards():
     id_deck = request.json["id_deck"]
-    for deck in all_decks_db:
-        if id_deck == deck.id_deck:
-            results = [card.to_dict() for card in deck.cards]
-            return json.dumps({"results": results}), status.HTTP_200_OK
-    return {"response":"id_deck not found!"}, status.HTTP_404_NOT_FOUND
-
+    cards = [card.to_dict() for card in Card.query.filter_by(id_deck=id_deck)]
+    if cards:
+        return json.dumps({"results": cards}), status.HTTP_200_OK
+    return json.dumps({"results": "id_deck not found!"}), status.HTTP_404_NOT_FOUND
 
 @app.route("/review_cards", methods=["POST"])
 def review_cards():
     num_cards_review = 5 # note: i have to put this configuration in a config.ini
     id_deck = request.json["id_deck"]
-    all_cards = []
-    for deck in all_decks_db:
-        if id_deck == deck.id_deck:
-            all_cards = [card.to_dict() for card in deck.cards]
-            return json.dumps({"results": sorted(all_cards, key=lambda x: x["grade"])[:num_cards_review]}), status.HTTP_200_OK
-    return {"response":"id_deck not found!"}, status.HTTP_404_NOT_FOUND
-
+    cards = [card.to_dict() for card in Card.query.filter_by(id_deck=id_deck)]
+    if cards:
+        return json.dumps({"results": sorted(cards, key=lambda x: x["grade"])[:num_cards_review]}), status.HTTP_200_OK
+    return {"response": "id_deck not found!"}, status.HTTP_404_NOT_FOUND
 
 @app.route("/evaluate_card", methods=["PUT"])
 def evaluate_card():
     id_deck = request.json["id_deck"]
     id_card = request.json["id_card"]
     grade = request.json["grade"]
-    for deck in all_decks_db:
-        if id_deck == deck.id_deck:
-            for card in deck.cards:
-                if id_card == card.id_card:
-                    card.update_grade(grade)
-                    card.update_last_review()
-                    return json.dumps({"results":"ok!"}), status.HTTP_200_OK
+    card = Card.query.filter_by(id_deck=id_deck, id_card=id_card).first()
+    if card:
+        card.update_grade(grade)
+        card.update_last_review()
+        db.session.commit()
+        return json.dumps({"results":"ok!"}), status.HTTP_200_OK
+    return {"response": "card/deck not found!"}, status.HTTP_404_NOT_FOUND
 
-
-def store_data():
-    deck = Deck(name="deck1111", description="este es un deck de prueba")
-    db.session.add(deck)
-    db.session.commit()
-    
-"""
 
 if __name__ == "__main__":
     app.run(debug=True)
