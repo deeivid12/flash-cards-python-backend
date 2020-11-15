@@ -8,9 +8,13 @@ import json
 from datetime import datetime
 import copy
 
+
+
+
 all_decks_db = list()
 
 app = Flask(__name__)
+#cors = CORS(app, resources={r"/*": {"origins": "*"}})
 CORS(app)
 
 # create database and models
@@ -123,6 +127,15 @@ def create_card():
     db.session.commit()
     return {"response": "ok!"}, status.HTTP_200_OK
 
+@app.route("/my_card", methods=["POST"])    
+def get_card():
+    id_deck = request.json["id_deck"]
+    id_card = request.json["id_card"]
+    card = Card.query.filter_by(id_deck=id_deck, id_card=id_card).first()
+    if card:
+        return json.dumps({"results": card.to_dict()}), status.HTTP_200_OK
+    return json.dumps({"results": "id_deck not found!"}), status.HTTP_404_NOT_FOUND
+
 @app.route("/my_cards", methods=["POST"])    
 def get_cards():
     id_deck = request.json["id_deck"]
@@ -130,6 +143,32 @@ def get_cards():
     if cards:
         return json.dumps({"results": cards}), status.HTTP_200_OK
     return json.dumps({"results": "id_deck not found!"}), status.HTTP_404_NOT_FOUND
+
+@app.route("/edit_card", methods=["PUT"])
+def edit_card():
+    id_deck = request.json["id_deck"]
+    id_card = request.json["id_card"]
+    front = request.json["front"]
+    back = request.json["back"]
+    card = Card.query.filter_by(id_deck=id_deck, id_card=id_card).first()
+    if card:
+        card.front = front
+        card.back = back
+        card.update_date_now()
+        db.session.commit()
+        return json.dumps({"results": "ok!"}), status.HTTP_200_OK
+    return json.dumps({"results": "id_deck/id_card not found!"}), status.HTTP_404_NOT_FOUND
+
+@app.route("/delete_card", methods=["POST"])
+def delete_card():
+    id_deck = request.json["id_deck"]
+    id_card = request.json["id_card"]
+    card = Card.query.filter_by(id_deck=id_deck, id_card=id_card).first()
+    if card:
+        db.session.delete(card)
+        db.session.commit()
+        return json.dumps({"results":"ok!"}), status.HTTP_200_OK
+    return json.dumps({"results":"id_deck/id_card not found!"}), status.HTTP_404_NOT_FOUND  
 
 @app.route("/review_cards", methods=["POST"])
 def review_cards():
